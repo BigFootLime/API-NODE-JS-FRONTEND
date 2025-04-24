@@ -1,25 +1,27 @@
-// 📁 src/components/AddVaultItemForm.tsx
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { z } from 'zod'
 import { encryptSecret } from '@/lib/crypto.utils'
 import { Button } from '@/components/ui/button'
-import axios from 'axios'
+import { api } from '@/lib/axios'
 import { CustomInput } from './CustomInput'
+import { useVaultContext } from '@/context/VaultContext'
+import { toast } from 'sonner'
 
 const formSchema = z.object({
-  vaultId: z.string(),
-  name: z.string().min(1),
-  url: z.string().url(),
-  username: z.string().min(1),
-  password: z.string().min(6),
-  masterPassword: z.string().min(6),
+  title: z.string().min(1, { message: "Title is required" }),
+  url: z.string().url({ message: "URL invalide" }),
+  username: z.string().min(1, { message: "Username is required" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  masterPassword: z.string().min(6, { message: "Master password is required" }),
 })
 
 type FormValues = z.infer<typeof formSchema>
 
 export default function AddVaultItemForm() {
+  const { selectedVault } = useVaultContext()
+
   const {
     register,
     handleSubmit,
@@ -31,62 +33,65 @@ export default function AddVaultItemForm() {
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
-      const { encryptedPassword, iv, salt } = await encryptSecret(
+      const user = JSON.parse(localStorage.getItem('user') || '{}')
+      if (!user?.id) {
+        toast.error("Utilisateur non identifié.")
+        throw new Error("Missing user")
+      }
+
+      if (!selectedVault?._id) {
+        toast.warning("Aucun coffre sélectionné.")
+        throw new Error("Missing vault")
+      }
+
+      // 🔐 Chiffrement complet (username + url + password)
+      const secretPayload = {
+        username: values.username,
+        url: values.url,
+        password: values.password,
+      }
+
+      const { ciphertext, iv, salt } = await encryptSecret(
         values.masterPassword,
-        values.password
+        JSON.stringify(secretPayload)
       )
 
       const payload = {
-        vault: values.vaultId,
-        name: values.name,
-        username: values.username,
-        url: values.url,
-        encryptedPassword,
-        iv,
-        salt,
-        createdBy: 'USER_ID_HERE', // remplace dynamiquement avec ton système d'auth
+        vault: selectedVault._id,
+        title: values.title,
+        type: 'password', // ou 'note', 'apiKey' selon le type d'item
+        encryptedData: JSON.stringify({ ciphertext, iv, salt }),
+        createdBy: user.id,
       }
 
-      await axios.post('/api/vault-items', payload)
+      console.log("📦 Payload envoyé au backend :", payload)
+
+      await api.post('/vault-items', payload)
     },
     onSuccess: () => {
+      toast.success("Élément ajouté au coffre 🔐", {
+        description: "L’élément a été chiffré et enregistré avec succès.",
+      })
       reset()
-      alert('Vault item added securely!')
     },
     onError: (err) => {
-      alert('Error adding item.')
-      console.error(err)
+      toast.error("Erreur lors de l’ajout ❌", {
+        description: err?.response?.data?.message || "Erreur inconnue.",
+      })
+      console.error("❌ Backend error:", err)
     },
   })
 
   return (
     <form onSubmit={handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
-      <div>
-      <CustomInput label="Vault ID" id="vaultId" {...register("vaultId")} error={errors.vaultId?.message}/>
-      </div>
-
-      <div>
-      <CustomInput label="Site Name" id="name" {...register("name")} error={errors.name?.message}/>
-      </div>
-
-      <div>
-      <CustomInput label="URL" id="url" {...register("url")} error={errors.url?.message}/>
-      </div>
-
-      <div>
-      <CustomInput label="Username" id="username" {...register("username")} error={errors.username?.message}/>
-      </div>
-
-      <div>
-      <CustomInput label="Password" id="password" {...register("password")} error={errors.password?.message}/>
-      </div>
-
-      <div>
-      <CustomInput label="Master Password" id="masterPassword" {...register("masterPassword")} error={errors.masterPassword?.message}/>
-      </div>
+      <CustomInput label="Titre du site" id="title" {...register('title')} error={errors.title?.message} />
+      <CustomInput label="URL" id="url" {...register('url')} error={errors.url?.message} />
+      <CustomInput label="Nom d'utilisateur" id="username" {...register('username')} error={errors.username?.message} />
+      <CustomInput type="password" label="Mot de passe" id="password" {...register('password')} error={errors.password?.message} />
+      <CustomInput type="password" label="Mot de passe maître" id="masterPassword" {...register('masterPassword')} error={errors.masterPassword?.message} />
 
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Encrypting...' : 'Add to Vault'}
+        {isSubmitting ? 'Chiffrement en cours...' : 'Ajouter à mon coffre'}
       </Button>
     </form>
   )

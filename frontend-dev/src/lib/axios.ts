@@ -1,6 +1,15 @@
-import axios from "axios"
+import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: "http://localhost:5000/api", // met l'URL de ton backend ici
-  withCredentials: true, // si tu veux gérer des cookies plus tard
+  baseURL: 'http://localhost:5000/api',
+  withCredentials: true,
 })
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken')
+    if (token) config.headers.Authorization = `Bearer ${token}`
+    return config
+  },
+  (error) => Promise.reject(error)
+)

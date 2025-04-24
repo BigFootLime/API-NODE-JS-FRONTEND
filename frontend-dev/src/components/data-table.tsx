@@ -36,7 +36,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import {
-  CheckCircle2Icon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -44,17 +43,14 @@ import {
   ChevronsRightIcon,
   ColumnsIcon,
   GripVerticalIcon,
-  LoaderIcon,
   MoreVerticalIcon,
   PlusIcon,
   TrendingUpIcon,
 } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
-import { toast } from "sonner"
 import { z } from "zod"
 
 import { useIsMobile } from "@/hooks/use-mobile"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   ChartConfig,
@@ -106,25 +102,25 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 
+
+import AddVaultItemForm from "./AddVaultItemForm"
+import { decryptSecret } from "@/lib/crypto.utils"
+import { DecryptedUsernameCell } from "@/components/DecryptedUsernameCell"
+import { DecryptedPasswordCell } from "@/components/DecryptedPasswordCell"
+import { useMasterPassword } from "@/context/MasterPasswordContext"
+import { useEffect, useState } from "react"
+
 export const schema = z.object({
-  id: z.number(),
-  header: z.string(),
-  type: z.string(),
-  status: z.string(),
-  target: z.string(),
-  limit: z.string(),
-  reviewer: z.string(),
+  id: z.string(),
+  encryptedData: z.string(), // nouveau champ
+  loginCount: z.number().min(0),
+  passwordChangeCount: z.number().min(0),
+  title: z.string(),
 })
 
-export type VaultItem = {
-  id: string
-  site: string
-  username: string
-  password: string
-}
 
 // Create a separate component for the drag handle
-function DragHandle({ id }: { id: number }) {
+function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({
     id,
   })
@@ -143,7 +139,7 @@ function DragHandle({ id }: { id: number }) {
   )
 }
 
-const columns: ColumnDef<z.infer<typeof schema>>[] = [
+export const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     id: "drag",
     header: () => null,
@@ -176,42 +172,17 @@ const columns: ColumnDef<z.infer<typeof schema>>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "header",
-    header: "Header",
-    cell: ({ row }) => {
-      return <TableCellViewer item={row.original} />
-    },
-    enableHiding: false,
-  },
-  {
-    accessorKey: "site",
-    header: "Site URL",
-    cell: ({ row }) => <span>{row.original.site}</span>,
-  },
-  {
-    accessorKey: "username",
+    accessorKey: "encryptedData",
+    id: "username",
     header: "Username",
-    cell: ({ row }) => <span>{row.original.username}</span>,
+    cell: ({ row }) => <DecryptedUsernameCell encryptedData={row.original.encryptedData} />,
   },
   {
-    accessorKey: "password",
-    header: "Password",
-    cell: ({ row }) => <span className="tracking-widest">••••••••</span>,
+    accessorKey: "encryptedData",
+    id: "password",
+    header: () => <div className="w-full text-right">Password</div>,
+    cell: ({ row }) => <DecryptedPasswordCell encryptedData={row.original.encryptedData} />,
   },
-  {
-    id: "actions",
-    header: () => <span className="sr-only">Actions</span>,
-    cell: ({ row }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => alert(`Viewing password for ${row.original.site}`)}
-      >
-        View
-      </Button>
-    ),
-  },
- 
   {
     id: "actions",
     cell: () => (
@@ -328,6 +299,7 @@ export function DataTable({
     }
   }
 
+
   return (
     <Tabs
       defaultValue="outline"
@@ -345,33 +317,12 @@ export function DataTable({
             <SelectValue placeholder="Select a view" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="outline">Outline</SelectItem>
-            <SelectItem value="past-performance">Past Performance</SelectItem>
-            <SelectItem value="key-personnel">Key Personnel</SelectItem>
-            <SelectItem value="focus-documents">Focus Documents</SelectItem>
+            <SelectItem value="outline">Overview</SelectItem>
           </SelectContent>
         </Select>
         <TabsList className="@4xl/main:flex hidden">
-          <TabsTrigger value="outline">Outline</TabsTrigger>
-          <TabsTrigger value="past-performance" className="gap-1">
-            Past Performance{" "}
-            <Badge
-              variant="secondary"
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
-            >
-              3
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="key-personnel" className="gap-1">
-            Key Personnel{" "}
-            <Badge
-              variant="secondary"
-              className="flex h-5 w-5 items-center justify-center rounded-full bg-muted-foreground/30"
-            >
-              2
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
+          <TabsTrigger value="outline">Overview</TabsTrigger>
+          
         </TabsList>
         <div className="flex items-center gap-2">
           <DropdownMenu>
@@ -407,10 +358,22 @@ export function DataTable({
                 })}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm">
-            <PlusIcon />
-            <span className="hidden lg:inline">Add Section</span>
-          </Button>
+          <Sheet>
+  <SheetTrigger asChild>
+    <Button variant="outline" size="sm">
+      <PlusIcon />
+      <span className="hidden lg:inline">Add Vault Item</span>
+    </Button>
+  </SheetTrigger>
+  <SheetContent side="right" className="flex flex-col p-4 lg:p-6">
+    <SheetHeader>
+      <SheetTitle>Add New Vault Item</SheetTitle>
+      <SheetDescription>Store credentials securely in your vault.</SheetDescription>
+    </SheetHeader>
+    <AddVaultItemForm />
+  </SheetContent>
+</Sheet>
+
         </div>
       </div>
       <TabsContent
@@ -566,40 +529,59 @@ export function DataTable({
 }
 
 const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
+  { month: "January", loginCount: 10, passwordChangeCount: 1 },
+  { month: "February", loginCount: 18, passwordChangeCount: 2 },
+  { month: "March", loginCount: 12, passwordChangeCount: 0 },
+  { month: "April", loginCount: 25, passwordChangeCount: 3 },
+  { month: "May", loginCount: 20, passwordChangeCount: 1 },
+  { month: "June", loginCount: 15, passwordChangeCount: 0 },
 ]
 
+
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "var(--primary)",
+  loginCount: {
+    label: "Logins",
+    color: "var(--chart-1)", // tu peux définir cette variable CSS
   },
-  mobile: {
-    label: "Mobile",
-    color: "var(--primary)",
+  passwordChangeCount: {
+    label: "Password Changes",
+    color: "var(--chart-2)", // idem ici
   },
 } satisfies ChartConfig
 
 function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
   const isMobile = useIsMobile()
+  const { masterPassword } = useMasterPassword();
+  const [decrypted, setDecrypted] = useState<{ username: string; url: string; password: string } | null>(null)
 
+  useEffect(() => {
+    const decrypt = async () => {
+      if (item.encryptedData && masterPassword) {
+        try {
+          const parsed = JSON.parse(item.encryptedData)
+          const result = await decryptSecret(masterPassword, parsed)
+          const json = JSON.parse(result)
+          setDecrypted(json)
+        } catch (err) {
+          console.error("Erreur de déchiffrement :", err)
+        }
+      }
+    }
+    decrypt()
+  }, [item.encryptedData, masterPassword])
+  
   return (
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="link" className="w-fit px-0 text-left text-foreground">
-          {item.header}
+          {item.site}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="flex flex-col">
+      <SheetContent side="right" className="flex flex-col p-4 lg:p-6">
         <SheetHeader className="gap-1">
-          <SheetTitle>{item.header}</SheetTitle>
+          <SheetTitle>{item.site}</SheetTitle>
           <SheetDescription>
-            Showing total visitors for the last 6 months
+            Showing total connections to this site in the last 6 months
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto py-4 text-sm">
@@ -628,19 +610,19 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                     content={<ChartTooltipContent indicator="dot" />}
                   />
                   <Area
-                    dataKey="mobile"
+                    dataKey="loginCount"
                     type="natural"
-                    fill="var(--color-mobile)"
+                    fill="var(--chart-1)"
                     fillOpacity={0.6}
-                    stroke="var(--color-mobile)"
+                    stroke="var(--chart-1)"
                     stackId="a"
                   />
                   <Area
-                    dataKey="desktop"
+                    dataKey="passwordChangeCount"
                     type="natural"
-                    fill="var(--color-desktop)"
+                    fill="var(--chart-3)"
                     fillOpacity={0.4}
-                    stroke="var(--color-desktop)"
+                    stroke="var(--chart-3)"
                     stackId="a"
                   />
                 </AreaChart>
@@ -648,90 +630,53 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               <Separator />
               <div className="grid gap-2">
                 <div className="flex gap-2 font-medium leading-none">
-                  Trending up by 5.2% this month{" "}
-                  <TrendingUpIcon className="size-4" />
+                  Activity summary for the last 6 months <TrendingUpIcon className="size-4" />
                 </div>
                 <div className="text-muted-foreground">
-                  Showing total visitors for the last 6 months. This is just
-                  some random text to test the layout. It spans multiple lines
-                  and should wrap around.
+                  This chart shows how often you logged into this account and how many times the password was changed.
+                  Tracking this data helps you stay aware of usage patterns and password hygiene.
                 </div>
               </div>
+
               <Separator />
             </>
           )}
-          <form className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="header">Header</Label>
-              <Input id="header" defaultValue={item.header} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+                   {!decrypted && (
+            <p className="text-muted-foreground">🔐 Entrez votre mot de passe maître pour déverrouiller cet item.</p>
+          )}
+
+          {decrypted && (
+            <form className="flex flex-col gap-4">
               <div className="flex flex-col gap-3">
-                <Label htmlFor="type">Type</Label>
-                <Select defaultValue={item.type}>
-                  <SelectTrigger id="type" className="w-full">
-                    <SelectValue placeholder="Select a type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Table of Contents">
-                      Table of Contents
-                    </SelectItem>
-                    <SelectItem value="Executive Summary">
-                      Executive Summary
-                    </SelectItem>
-                    <SelectItem value="Technical Approach">
-                      Technical Approach
-                    </SelectItem>
-                    <SelectItem value="Design">Design</SelectItem>
-                    <SelectItem value="Capabilities">Capabilities</SelectItem>
-                    <SelectItem value="Focus Documents">
-                      Focus Documents
-                    </SelectItem>
-                    <SelectItem value="Narrative">Narrative</SelectItem>
-                    <SelectItem value="Cover Page">Cover Page</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="site">URL du site</Label>
+                <Input id="site" defaultValue={decrypted.url} readOnly />
               </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="status">Status</Label>
-                <Select defaultValue={item.status}>
-                  <SelectTrigger id="status" className="w-full">
-                    <SelectValue placeholder="Select a status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Done">Done</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Not Started">Not Started</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="username">Nom d'utilisateur</Label>
+                  <Input id="username" defaultValue={decrypted.username} readOnly />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="password">Mot de passe</Label>
+                  <Input id="password" type="password" defaultValue={decrypted.password} readOnly />
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="target">Target</Label>
-                <Input id="target" defaultValue={item.target} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="login-count">Connexions</Label>
+                  <Input id="login-count" defaultValue={item.loginCount?.toString() || "0"} readOnly />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <Label htmlFor="password-change-count">Changements</Label>
+                  <Input id="password-change-count" defaultValue={item.passwordChangeCount?.toString() || "0"} readOnly />
+                </div>
               </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor="limit">Limit</Label>
-                <Input id="limit" defaultValue={item.limit} />
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="reviewer">Reviewer</Label>
-              <Select defaultValue={item.reviewer}>
-                <SelectTrigger id="reviewer" className="w-full">
-                  <SelectValue placeholder="Select a reviewer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Eddie Lake">Eddie Lake</SelectItem>
-                  <SelectItem value="Jamik Tashpulatov">
-                    Jamik Tashpulatov
-                  </SelectItem>
-                  <SelectItem value="Emily Whalen">Emily Whalen</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </form>
+            </form>
+          )}
+
+
         </div>
         <SheetFooter className="mt-auto flex gap-2 sm:flex-col sm:space-x-0">
           <Button className="w-full">Submit</Button>

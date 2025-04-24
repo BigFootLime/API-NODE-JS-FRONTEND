@@ -7,8 +7,10 @@ export const registerUser = async (data: RegisterSchema) => {
   return res.data
 }
 
-export const loginUser = async (data: LoginSchema) => {
+export const loginUser = async (data: LoginSchema): Promise<{ accessToken: string, user: { id: string } }> => {
   const res = await api.post("/auth/login", data)
-  return res.data
+  return {
+    accessToken: res.data.token.token,
+    user: res.data.token.user,
+  }
 }
-

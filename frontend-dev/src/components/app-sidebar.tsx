@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import {
-  ArrowUpCircleIcon,
   BarChartIcon,
   CameraIcon,
   ClipboardListIcon,
@@ -33,6 +32,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+import { useVaults } from '@/hooks/useVaults'
+import { useVaultContext } from '@/context/VaultContext'
+
 const data = {
   user: {
     name: "shadcn",
@@ -40,31 +42,7 @@ const data = {
     avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
-    {
-      title: "Dashboard",
-      url: "#",
-      icon: LayoutDashboardIcon,
-    },
-    {
-      title: "Lifecycle",
-      url: "#",
-      icon: ListIcon,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: BarChartIcon,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: FolderIcon,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: UsersIcon,
-    },
+    
   ],
   navClouds: [
     {
@@ -151,6 +129,26 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { selectedVault, setSelectedVault } = useVaultContext()
+  const { data: vaults = [] } = useVaults()
+
+  const vaultNavItems = vaults.map((vault: any) => ({
+    name: vault.name,
+    url: "#",
+    onClick: () => {
+      console.log("Vault sélectionné :", vault)
+      setSelectedVault(vault)
+    },
+    
+    icon: () => (
+      <img
+        src="/vaultIcon.svg"
+        alt="Vault Icon"
+        style={{ width: 40, height: 40 }}
+      />
+    ),
+  }))
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -161,7 +159,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-                <img src="/LogoLight.svg" className="h-5 w-5" />
+                <img src="/Logo.svg" className="h-8 w-8" />
                 <span className="text-base font-semibold">CRP Vault</span>
               </a>
             </SidebarMenuButton>
@@ -170,7 +168,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
+       <NavDocuments items={vaultNavItems} activeVaultId={selectedVault?.id} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

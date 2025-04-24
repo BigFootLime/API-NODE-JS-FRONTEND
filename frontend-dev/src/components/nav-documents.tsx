@@ -25,26 +25,37 @@ import {
 
 export function NavDocuments({
   items,
+  activeVaultId,
 }: {
   items: {
     name: string
     url: string
     icon: LucideIcon
+    onClick?: () => void
+    id?: string
   }[]
+  activeVaultId?: string
 }) {
+
   const { isMobile } = useSidebar()
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Documents</SidebarGroupLabel>
+      <SidebarGroupLabel>Vaults</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
-          <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton asChild>
-              <a href={item.url}>
-                <item.icon />
-                <span>{item.name}</span>
-              </a>
+          <SidebarMenuItem key={item.name} data-active={item.id === activeVaultId}>
+           <SidebarMenuButton
+            asChild
+            onClick={item.onClick}
+            tooltip={item.name}
+            className={item.id === activeVaultId ? ' text-primary' : ''}
+           >
+               <button type="button">
+    <item.icon />
+    <span>{item.name}</span>
+  </button>
+
             </SidebarMenuButton>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
