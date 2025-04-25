@@ -42,6 +42,8 @@ import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
   ColumnsIcon,
+  EyeIcon,
+  EyeOffIcon,
   GripVerticalIcon,
   MoreVerticalIcon,
   PlusIcon,
@@ -173,6 +175,12 @@ export const columns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "encryptedData",
+    id: "site",
+    header: "Site",
+    cell: ({ row }) => <TableCellViewer item={row.original} /> // Use TableCellViewer here
+  },
+  {
+    accessorKey: "encryptedData",
     id: "username",
     header: "Username",
     cell: ({ row }) => <DecryptedUsernameCell encryptedData={row.original.encryptedData} />,
@@ -180,11 +188,12 @@ export const columns: ColumnDef<z.infer<typeof schema>>[] = [
   {
     accessorKey: "encryptedData",
     id: "password",
-    header: () => <div className="w-full text-right">Password</div>,
+    header: () => <div className="">Password</div>,
     cell: ({ row }) => <DecryptedPasswordCell encryptedData={row.original.encryptedData} />,
   },
   {
     id: "actions",
+    header: () => <div className="">Actions</div>,
     cell: () => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -208,6 +217,8 @@ export const columns: ColumnDef<z.infer<typeof schema>>[] = [
     ),
   },
 ]
+
+
 
 function DraggableRow({ row }: { row: Row<z.infer<typeof schema>> }) {
   const { transform, transition, setNodeRef, isDragging } = useSortable({
@@ -553,6 +564,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
   const isMobile = useIsMobile()
   const { masterPassword } = useMasterPassword();
   const [decrypted, setDecrypted] = useState<{ username: string; url: string; password: string } | null>(null)
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false) // State to toggle password visibility
 
   useEffect(() => {
     const decrypt = async () => {
@@ -570,16 +582,22 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
     decrypt()
   }, [item.encryptedData, masterPassword])
   
+  const togglePasswordVisibility = () => {
+    setIsPasswordVisible((prev) => !prev); // Toggle password visibility
+  }
+
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="link" className="w-fit px-0 text-left text-foreground">
-          {item.site}
+      <Button variant="link" className="w-fit px-0 text-left text-foreground">
+          <a href="#" style={{ textDecoration: 'underline' }}>
+            {decrypted ? decrypted.url : "🔐 Entrez votre mot de passe maître pour déverrouiller cet item."}
+          </a>
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="flex flex-col p-4 lg:p-6">
         <SheetHeader className="gap-1">
-          <SheetTitle>{item.site}</SheetTitle>
+        <SheetTitle>{decrypted ? decrypted.site : "Chargement..."}</SheetTitle>
           <SheetDescription>
             Showing total connections to this site in the last 6 months
           </SheetDescription>
@@ -641,10 +659,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
               <Separator />
             </>
           )}
-                   {!decrypted && (
-            <p className="text-muted-foreground">🔐 Entrez votre mot de passe maître pour déverrouiller cet item.</p>
-          )}
-
+            
           {decrypted && (
             <form className="flex flex-col gap-4">
               <div className="flex flex-col gap-3">
@@ -658,8 +673,19 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
                   <Input id="username" defaultValue={decrypted.username} readOnly />
                 </div>
                 <div className="flex flex-col gap-3">
+                  
                   <Label htmlFor="password">Mot de passe</Label>
-                  <Input id="password" type="password" defaultValue={decrypted.password} readOnly />
+                  <div className="flex items-center gap-2">
+                  <Input id="password" type={isPasswordVisible ? "text" : "password"}
+ defaultValue={decrypted.password} readOnly />
+                  <button type="button" onClick={togglePasswordVisibility}>
+                      {isPasswordVisible ? (
+                        <EyeOffIcon className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <EyeIcon className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </button>
+                    </div>
                 </div>
               </div>
 
@@ -679,7 +705,7 @@ function TableCellViewer({ item }: { item: z.infer<typeof schema> }) {
 
         </div>
         <SheetFooter className="mt-auto flex gap-2 sm:flex-col sm:space-x-0">
-          <Button className="w-full">Submit</Button>
+        
           <SheetClose asChild>
             <Button variant="outline" className="w-full">
               Done

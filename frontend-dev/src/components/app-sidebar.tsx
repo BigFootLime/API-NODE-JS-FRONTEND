@@ -34,6 +34,8 @@ import {
 
 import { useVaults } from '@/hooks/useVaults'
 import { useVaultContext } from '@/context/VaultContext'
+import {MasterPasswordDialog} from "@/components/MasterPasswordDialog"
+import { useState } from "react"
 
 const data = {
   user: {
@@ -131,15 +133,22 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { selectedVault, setSelectedVault } = useVaultContext()
   const { data: vaults = [] } = useVaults()
+  const [pendingVault, setPendingVault] = useState<any>(null)
+
+  const handleVaultClick = (vault: any) => {
+    setPendingVault(vault) // 🔐 déclenche le dialogue
+  }
+
+  const handleUnlock = () => {
+    setSelectedVault(pendingVault)
+    setPendingVault(null)
+  }
+
 
   const vaultNavItems = vaults.map((vault: any) => ({
     name: vault.name,
     url: "#",
-    onClick: () => {
-      console.log("Vault sélectionné :", vault)
-      setSelectedVault(vault)
-    },
-    
+    onClick: () => handleVaultClick(vault), 
     icon: () => (
       <img
         src="/vaultIcon.svg"
@@ -147,9 +156,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         style={{ width: 40, height: 40 }}
       />
     ),
+    id: vault._id, 
   }))
 
   return (
+    <>
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
@@ -168,12 +179,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-       <NavDocuments items={vaultNavItems} activeVaultId={selectedVault?.id} />
+       <NavDocuments items={vaultNavItems} activeVaultId={selectedVault?._id} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>
+    {pendingVault && (
+        <MasterPasswordDialog
+          vaultId={pendingVault._id}
+          onUnlock={handleUnlock}
+        />
+      )}
+</>
+
   )
 }
+

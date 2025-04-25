@@ -1,13 +1,16 @@
-// 📁 context/MasterPasswordContext.tsx
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, ReactNode } from 'react'
 
-const MasterPasswordContext = createContext<{
-  masterPassword: string
-  setMasterPassword: (pw: string) => void
-}>({ masterPassword: '', setMasterPassword: () => {} })
+// Définition du type pour le contexte du mot de passe maître
+type MasterPasswordContextType = {
+  masterPassword: string | null // masterPassword peut être soit une string, soit null
+  setMasterPassword: (password: string) => void
+}
 
-export const MasterPasswordProvider = ({ children }: { children: React.ReactNode }) => {
-  const [masterPassword, setMasterPassword] = useState('')
+const MasterPasswordContext = createContext<MasterPasswordContextType | undefined>(undefined)
+
+export const MasterPasswordProvider = ({ children }: { children: ReactNode }) => {
+  const [masterPassword, setMasterPassword] = useState<string | null>(null) // initialisation de masterPassword à null
+
   return (
     <MasterPasswordContext.Provider value={{ masterPassword, setMasterPassword }}>
       {children}
@@ -15,4 +18,8 @@ export const MasterPasswordProvider = ({ children }: { children: React.ReactNode
   )
 }
 
-export const useMasterPassword = () => useContext(MasterPasswordContext)
+export const useMasterPassword = () => {
+  const ctx = useContext(MasterPasswordContext)
+  if (!ctx) throw new Error('useMasterPassword must be used inside MasterPasswordProvider')
+  return ctx
+}

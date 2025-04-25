@@ -44,7 +44,7 @@ export function NavDocuments({
       <SidebarGroupLabel>Vaults</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
-          <SidebarMenuItem key={item.name} data-active={item.id === activeVaultId}>
+          <SidebarMenuItem key={item.id} data-active={item.id === activeVaultId}>
            <SidebarMenuButton
             asChild
             onClick={item.onClick}

@@ -4,6 +4,7 @@ import { api } from "../axios"
 
 export const createVaultItem = async (data: any) => {
   const response = await api.post("/vault-items", data)
+  console.log(data)
   return response.data
 }
 

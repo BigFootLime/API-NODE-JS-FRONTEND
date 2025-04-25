@@ -5,18 +5,32 @@ import { SiteHeader } from "@/components/site-header"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { VaultProvider, useVaultContext } from "@/context/VaultContext"
 import { useVaultItems } from "../../../hooks/useVaultItems.ts"
+import { useMasterPassword } from "@/context/MasterPasswordContext"
+import { useState, useEffect } from "react"
 
 function DashboardContent() {
   const { selectedVault } = useVaultContext()
+  const { masterPassword } = useMasterPassword()
+  const [unlocked, setUnlocked] = useState(false) 
   const { data: rawItems = [], isLoading } = useVaultItems()
+
   const items = rawItems.map((item) => ({
-    id: item._id, // correspondance avec ton schema
+    id: item._id,
     encryptedData: item.encryptedData,
     loginCount: item.loginCount,
     passwordChangeCount: item.passwordChangeCount,
     title: item.title,
   }))
+
+  useEffect(() => {
+    if (selectedVault && masterPassword) {
+      setUnlocked(true)  // Le vault est déverrouillé si un mot de passe maître est fourni
+    } else {
+      setUnlocked(false)  // Sinon, il est verrouillé
+    }
+  }, [selectedVault, masterPassword])
   
+
   return (
     <SidebarInset>
       <SiteHeader />
@@ -27,9 +41,21 @@ function DashboardContent() {
               {selectedVault ? `Vault: ${selectedVault.name}` : "Sélectionne un coffre à gauche"}
             </h2>
 
-            {isLoading && <p className="text-muted-foreground">Chargement des éléments du vault...</p>}
-            {!isLoading && selectedVault && <DataTable data={items} />}
-            {!selectedVault && <p className="text-muted-foreground">Aucun vault sélectionné</p>}
+            {!selectedVault && (
+              <p className="text-muted-foreground">Aucun vault sélectionné</p>
+            )}
+
+            {isLoading && selectedVault && (
+              <p className="text-muted-foreground">Chargement des éléments du vault...</p>
+            )}
+
+            {!isLoading && unlocked && (
+              <DataTable data={items} />
+            )}
+
+            {!isLoading && selectedVault && !masterPassword && (
+              <p className="text-muted-foreground">🔐 Vault verrouillé. Mot de passe maître requis.</p>
+            )}
 
             <ChartAreaInteractive />
           </div>
@@ -49,3 +75,4 @@ export default function DashboardPage() {
     </VaultProvider>
   )
 }
+

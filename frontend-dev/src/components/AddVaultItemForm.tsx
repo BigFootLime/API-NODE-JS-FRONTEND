@@ -88,7 +88,7 @@ export default function AddVaultItemForm() {
       <CustomInput label="URL" id="url" {...register('url')} error={errors.url?.message} />
       <CustomInput label="Nom d'utilisateur" id="username" {...register('username')} error={errors.username?.message} />
       <CustomInput type="password" label="Mot de passe" id="password" {...register('password')} error={errors.password?.message} />
-      <CustomInput type="password" label="Mot de passe maître" id="masterPassword" {...register('masterPassword')} error={errors.masterPassword?.message} />
+      <CustomInput type="password" label=" Confirmez votre Mot de passe maître" id="masterPassword" {...register('masterPassword')} error={errors.masterPassword?.message} />
 
       <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Chiffrement en cours...' : 'Ajouter à mon coffre'}

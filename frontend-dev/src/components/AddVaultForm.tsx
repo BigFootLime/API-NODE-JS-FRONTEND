@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button'
 import { api } from '@/lib/axios'
 import { CustomInput } from './CustomInput'
 import { toast } from 'sonner'
+import bcrypt from 'bcryptjs'
 
 const formSchema = z.object({
   name: z.string().min(1, 'Vault name is required'),
   description: z.string().optional(),
-  owner: z.string().min(1).optional(), // rendre optionnel pour éviter le blocage
+  owner: z.string().min(1).optional(),
+  masterPassword: z.string().min(1, 'Master password is required'),
 })
 
 
@@ -49,16 +51,34 @@ export default function AddVaultForm() {
 
   return (
     <form
-    onSubmit={handleSubmit((data) => {
-      console.log('🚀 Form submitted') // <== celui-ci doit s’afficher
+    onSubmit={handleSubmit(async (data) => {
+      if (!data.masterPassword) {
+        toast.error('Mot de passe maître requis.')
+        return
+      }
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-  
+    
       if (!user?.id) {
         toast.error('Utilisateur non identifié.')
         return
       }
-  
-      mutation.mutate({ ...data, owner: user.id })
+    
+      try {
+        const hashedPassword = await bcrypt.hash(data.masterPassword, 12)
+        const payload = {
+          ...data,
+          masterPassword: hashedPassword,
+          owner: user.id,
+        }
+
+        console.log("🚀 Payload envoyé :", payload)
+
+    
+        await mutation.mutateAsync(payload)
+      } catch (err) {
+        toast.error('Erreur lors du hachage du mot de passe maître')
+        console.error(err)
+      }
     })}
     className="space-y-4"
   >
@@ -76,7 +96,15 @@ export default function AddVaultForm() {
         error={errors.description?.message}
       />
 
-      <Button type="submit" onClick={() => console.log('✅ Click détecté')} >
+      <CustomInput
+        label="Master Password"
+        id="masterPassword"
+        {...register("masterPassword", { required: true })}
+        error={errors.masterPassword?.message}
+      />
+      
+
+      <Button type="submit" >
         {isSubmitting ? 'Creating vault...' : 'Create Vault'}
       </Button>
     </form>
